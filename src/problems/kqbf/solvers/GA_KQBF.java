@@ -264,7 +264,7 @@ public class GA_KQBF extends AbstractGA<Integer, Integer> {
 	public static void main(String[] args) throws IOException {
 
 		long startTime = System.currentTimeMillis();
-		GA_KQBF ga = new GA_KQBF(1000, 100, 1.0 / 100.0, Strategies.ADAPTIVE_MUTATION, "instances/kqbf/kqbf200");
+		GA_KQBF ga = new GA_KQBF(1000, 100, 1.0 / 100.0, Strategies.ADAPTIVE_MUTATION, "instances/kqbf/kqbf400");
 		Solution<Integer> bestSol = ga.solve();
 		System.out.println("maxVal = " + bestSol);
 		long endTime = System.currentTimeMillis();
