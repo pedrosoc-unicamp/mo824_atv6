@@ -18,7 +18,7 @@ import solutions.Solution;
  * @author ccavellucci, fusberti
  */
 public class GA_KQBF extends AbstractGA<Integer, Integer> {
-
+	
 	/**
 	 * Constructor for the GA_KQBF class. The QBF objective function is passed as
 	 * argument for the superclass constructor.
@@ -35,8 +35,8 @@ public class GA_KQBF extends AbstractGA<Integer, Integer> {
 	 * @throws IOException
 	 *             Necessary for I/O operations.
 	 */
-	public GA_KQBF(Integer generations, Integer popSize, Double mutationRate, String filename) throws IOException {
-		super(new KQBF(filename), generations, popSize, mutationRate);
+	public GA_KQBF(Integer generations, Integer popSize, Double mutationRate, Strategies strategy, String filename) throws IOException {
+		super(new KQBF(filename), generations, popSize, mutationRate, strategy);
 	}
 
 	/**
@@ -78,6 +78,10 @@ public class GA_KQBF extends AbstractGA<Integer, Integer> {
 	 */
 	@Override
 	protected Chromosome generateRandomChromosome() {
+		return this.optimazedGenerateRandomChromosome();
+	}
+	
+	protected Chromosome standardGenerateRandomChromosome() {
 		
 		KQBF kqbf = (KQBF) ObjFunction;
 		Chromosome chromosome = new Chromosome();
@@ -92,6 +96,33 @@ public class GA_KQBF extends AbstractGA<Integer, Integer> {
 
 		return chromosome;
 	}
+	
+	// trying to optimize random chromosome with knapsack
+	protected Chromosome optimazedGenerateRandomChromosome() {
+		
+		KQBF kqbf = (KQBF) ObjFunction;
+		Chromosome chromosome = new Chromosome();
+		
+		while (chromosome.isEmpty() || decode(chromosome).weight > kqbf.weight) {
+			chromosome = new Chromosome();
+			boolean overWeight = false;
+
+			for (int i = 0; i < chromosomeSize; i++) {
+				if (!overWeight) {
+					chromosome.add(rng.nextInt(2));
+					
+					if (decode(chromosome).weight > kqbf.weight) {
+						chromosome.set(i, 0);
+						overWeight = true;
+					}
+				} else {
+					chromosome.add(0);
+				}
+			}
+		};
+
+		return chromosome;
+	}
 
 	/*
 	 * (non-Javadoc)
@@ -100,6 +131,14 @@ public class GA_KQBF extends AbstractGA<Integer, Integer> {
 	 */
 	@Override
 	protected Population crossover(Population parents) {
+		if (Strategies.UNIFORM_CROSSOVER.equals(this.strategy)) {
+			return this.crossoverUniform(parents);
+		}
+
+		return this.crossoverStandard(parents);
+	}
+	
+	protected Population crossoverStandard(Population parents) {
 
 		Population offsprings = new Population();
 
@@ -121,6 +160,47 @@ public class GA_KQBF extends AbstractGA<Integer, Integer> {
 				} else {
 					offspring1.add(parent1.get(j));
 					offspring2.add(parent2.get(j));
+				}
+			}
+			
+			KQBF kqbf = (KQBF) ObjFunction;
+			
+			if (decode(offspring1).weight <= kqbf.weight) {
+				offsprings.add(offspring1);
+			} else {
+				offsprings.add(parent1);
+			}
+			
+			if (decode(offspring2).weight <= kqbf.weight) {
+				offsprings.add(offspring2);
+			} else {
+				offsprings.add(parent2);
+			}
+		}
+
+		return offsprings;
+
+	}
+	
+	protected Population crossoverUniform(Population parents) {
+
+		Population offsprings = new Population();
+
+		for (int i = 0; i < popSize; i = i + 2) {
+
+			Chromosome parent1 = parents.get(i);
+			Chromosome parent2 = parents.get(i + 1);
+			
+			Chromosome offspring1 = new Chromosome();
+			Chromosome offspring2 = new Chromosome();
+			
+			for (int j = 0; j < chromosomeSize; j++) {
+				if (rng.nextInt(2) == 1) {
+					offspring1.add(parent1.get(j));
+					offspring2.add(parent2.get(j));
+				} else {
+					offspring1.add(parent2.get(j));
+					offspring2.add(parent1.get(j));
 				}
 			}
 			
@@ -184,7 +264,7 @@ public class GA_KQBF extends AbstractGA<Integer, Integer> {
 	public static void main(String[] args) throws IOException {
 
 		long startTime = System.currentTimeMillis();
-		GA_KQBF ga = new GA_KQBF(1000, 100, 1.0 / 100.0, "instances/kqbf/kqbf100");
+		GA_KQBF ga = new GA_KQBF(1000, 100, 1.0 / 100.0, Strategies.ADAPTIVE_MUTATION, "instances/kqbf/kqbf200");
 		Solution<Integer> bestSol = ga.solve();
 		System.out.println("maxVal = " + bestSol);
 		long endTime = System.currentTimeMillis();

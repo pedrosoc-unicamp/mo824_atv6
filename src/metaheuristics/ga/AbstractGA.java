@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Random;
 
 import problems.Evaluator;
+import problems.kqbf.solvers.Strategies;
 import solutions.Solution;
 
 /**
@@ -76,6 +77,11 @@ public abstract class AbstractGA<G extends Number, F> {
 	 * the best chromosome, according to its fitness evaluation
 	 */
 	protected Chromosome bestChromosome;
+	
+	/**
+	 * Maximum weight.
+	 */
+	public Strategies strategy;
 
 	/**
 	 * Creates a new solution which is empty, i.e., does not contain any
@@ -138,12 +144,13 @@ public abstract class AbstractGA<G extends Number, F> {
 	 * @param mutationRate
 	 *            The mutation rate.
 	 */
-	public AbstractGA(Evaluator<F> objFunction, Integer generations, Integer popSize, Double mutationRate) {
+	public AbstractGA(Evaluator<F> objFunction, Integer generations, Integer popSize, Double mutationRate, Strategies strategy) {
 		this.ObjFunction = objFunction;
 		this.generations = generations;
 		this.popSize = popSize;
 		this.chromosomeSize = this.ObjFunction.getDomainSize();
 		this.mutationRate = mutationRate;
+		this.strategy = strategy;
 	}
 
 	/**
@@ -155,6 +162,8 @@ public abstract class AbstractGA<G extends Number, F> {
 	 * @return The best feasible solution obtained throughout all iterations.
 	 */
 	public Solution<F> solve() {
+		
+		long startTime = System.currentTimeMillis();
 
 		/* starts the initial population */
 		Population population = initializePopulation();
@@ -185,6 +194,9 @@ public abstract class AbstractGA<G extends Number, F> {
 				if (verbose)
 					System.out.println("(Gen. " + g + ") BestSol = " + bestSol);
 			}
+			
+			if (System.currentTimeMillis() - startTime > 30 * 60000)
+				break;
 
 		}
 
@@ -346,10 +358,45 @@ public abstract class AbstractGA<G extends Number, F> {
 	 * @return The mutated offsprings.
 	 */
 	protected Population mutate(Population offsprings) {
+		if (Strategies.ADAPTIVE_MUTATION.equals(this.strategy)) {
+			return this.mutateAdaptive(offsprings);
+		}
+
+		return this.mutateStandard(offsprings);
+	}
+	
+	protected Population mutateStandard(Population offsprings) {
 
 		for (Chromosome c : offsprings) {
 			for (int locus = 0; locus < chromosomeSize; locus++) {
 				if (rng.nextDouble() < mutationRate) {
+					mutateGene(c, locus);
+				}
+			}
+		}
+
+		return offsprings;
+	}
+	
+	protected Population mutateAdaptive(Population offsprings) {
+		
+		double rate = this.mutationRate;
+
+		for (Chromosome c : offsprings) {
+			double worseCost = fitness(getWorseChromosome(offsprings));
+			double diff = bestSol.cost - worseCost;
+			double mutation = diff < 0.0 ? (bestSol.cost + worseCost) / bestSol.cost : diff / bestSol.cost;
+			
+			if (mutation > 3.0) {
+				rate = this.mutationRate / 1.1;
+			}
+			
+			if (mutation < 0.7) {
+				rate = this.mutationRate * 1.1;
+			}
+			
+			for (int locus = 0; locus < chromosomeSize; locus++) {
+				if (rng.nextDouble() < rate) {
 					mutateGene(c, locus);
 				}
 			}
